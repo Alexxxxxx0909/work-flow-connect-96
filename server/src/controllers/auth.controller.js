@@ -7,7 +7,7 @@ const { User } = require('../models');
  */
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role = 'freelancer' } = req.body;
+    const { name, email, password } = req.body;
     
     // Verificar si el email ya está en uso
     const existingUser = await User.findOne({ where: { email } });
@@ -22,8 +22,7 @@ exports.register = async (req, res) => {
     const user = await User.create({
       name,
       email,
-      password,
-      role
+      password
     });
     
     // Generar token JWT
@@ -149,4 +148,11 @@ exports.verifySession = async (req, res) => {
       error: error.message
     });
   }
+};
+
+module.exports = {
+  register,
+  login,
+  logout,
+  verifySession
 };

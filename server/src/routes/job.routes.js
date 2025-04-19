@@ -2,14 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const jobController = require('../controllers/job.controller');
-const { verifyToken, isClient } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth');
 
 // Rutas públicas (lectura)
 router.get('/', jobController.getAllJobs);
 router.get('/:jobId', jobController.getJobById);
 
 // Rutas protegidas
-router.post('/', verifyToken, isClient, jobController.createJob);
+router.post('/', verifyToken, jobController.createJob);
 router.put('/:jobId', verifyToken, jobController.updateJob);
 router.delete('/:jobId', verifyToken, jobController.deleteJob);
 

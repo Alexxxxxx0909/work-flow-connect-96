@@ -52,51 +52,16 @@ exports.verifyToken = async (req, res, next) => {
 };
 
 /**
- * Middleware para verificar permisos de cliente
+ * Middleware para verificar permisos de usuario
  */
 exports.isClient = (req, res, next) => {
-  if (req.user && req.user.role === 'client') {
+  if (req.user) {
     return next();
   }
   
   return res.status(403).json({
     success: false,
-    message: 'Acceso denegado. Se requiere rol de cliente.'
+    message: 'Acceso denegado.'
   });
 };
 
-/**
- * Middleware para verificar si es propietario del recurso (ej: job, comment)
- */
-exports.isOwner = (model) => async (req, res, next) => {
-  try {
-    const resourceId = req.params.id;
-    const userId = req.user.id;
-    
-    const resource = await model.findByPk(resourceId);
-    
-    if (!resource) {
-      return res.status(404).json({
-        success: false,
-        message: 'Recurso no encontrado'
-      });
-    }
-    
-    if (resource.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: 'Acceso denegado. No eres propietario de este recurso.'
-      });
-    }
-    
-    req.resource = resource;
-    next();
-    
-  } catch (error) {
-    console.error('Error en middleware isOwner:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
-  }
-};
