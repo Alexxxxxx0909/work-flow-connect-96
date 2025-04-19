@@ -11,6 +11,14 @@ const Comment = sequelize.define('Comment', {
   content: {
     type: DataTypes.TEXT,
     allowNull: false
+  },
+  jobId: {
+    type: DataTypes.UUID,
+    allowNull: false
+  },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false
   }
 }, {
   timestamps: true

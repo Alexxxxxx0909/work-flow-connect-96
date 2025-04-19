@@ -98,6 +98,27 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
     const response = await apiRequest(`/jobs/${jobId}`);
     if (response && response.job) {
       const job = response.job;
+      
+      // Mapear comentarios desde la API
+      const mappedComments: CommentType[] = job.comments ? job.comments.map((comment: any) => ({
+        id: comment.id,
+        jobId: job.id,
+        userId: comment.userId,
+        userName: comment.user?.name || "Usuario",
+        userPhoto: comment.user?.photoURL,
+        content: comment.content,
+        timestamp: new Date(comment.createdAt).getTime(),
+        replies: comment.replies ? comment.replies.map((reply: any) => ({
+          id: reply.id,
+          commentId: comment.id,
+          userId: reply.userId,
+          userName: reply.user?.name || "Usuario",
+          userPhoto: reply.user?.photoURL,
+          content: reply.content,
+          timestamp: new Date(reply.createdAt).getTime()
+        })) : []
+      })) : [];
+      
       return {
         id: job.id,
         title: job.title,
@@ -110,7 +131,7 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
         userName: job.user?.name || "Usuario",
         userPhoto: job.user?.photoURL,
         timestamp: new Date(job.createdAt).getTime(),
-        comments: job.comments || [],
+        comments: mappedComments,
         likes: job.likedBy?.map((user: any) => user.id) || [],
         createdAt: job.createdAt,
         updatedAt: job.updatedAt
