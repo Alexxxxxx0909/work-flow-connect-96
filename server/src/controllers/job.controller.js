@@ -1,4 +1,3 @@
-
 const { Job, User, Comment, Reply } = require('../models');
 const { Op } = require('sequelize');
 
@@ -136,6 +135,8 @@ exports.getJobById = async (req, res) => {
   try {
     const { jobId } = req.params;
     
+    console.log(`Buscando trabajo con ID: ${jobId}`);
+    
     const job = await Job.findByPk(jobId, {
       include: [
         {
@@ -175,11 +176,14 @@ exports.getJobById = async (req, res) => {
     });
     
     if (!job) {
+      console.log(`Trabajo con ID ${jobId} no encontrado`);
       return res.status(404).json({
         success: false,
         message: 'Trabajo no encontrado'
       });
     }
+    
+    console.log(`Trabajo encontrado: ${job.title}, Comentarios: ${job.comments ? job.comments.length : 0}`);
     
     return res.status(200).json({
       success: true,
@@ -519,6 +523,55 @@ exports.getSavedJobs = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Error al obtener trabajos guardados',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Obtener comentarios de un trabajo
+ */
+exports.getJobComments = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    
+    console.log(`Obteniendo comentarios para el trabajo ${jobId}`);
+    
+    const comments = await Comment.findAll({
+      where: { jobId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'photoURL']
+        },
+        {
+          model: Reply,
+          as: 'replies',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'name', 'photoURL']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+    
+    console.log(`Se encontraron ${comments.length} comentarios para el trabajo ${jobId}`);
+    
+    return res.status(200).json({
+      success: true,
+      comments
+    });
+    
+  } catch (error) {
+    console.error('Error al obtener comentarios:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener comentarios',
       error: error.message
     });
   }

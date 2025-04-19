@@ -247,6 +247,18 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
           ? { ...job, comments: [...job.comments, formattedComment] }
           : job
       ));
+      
+      // Recargamos el trabajo para asegurar que tenemos la última versión con todos los comentarios
+      try {
+        const updatedJob = await getJobById(jobId);
+        if (updatedJob) {
+          setJobs(prevJobs => prevJobs.map(job => 
+            job.id === jobId ? updatedJob : job
+          ));
+        }
+      } catch (refreshError) {
+        console.error("Error al refrescar el trabajo después de añadir comentario:", refreshError);
+      }
     } catch (error) {
       console.error("Error al añadir comentario:", error);
       throw error;
@@ -374,3 +386,5 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
     </JobContext.Provider>
   );
 };
+
+export {};

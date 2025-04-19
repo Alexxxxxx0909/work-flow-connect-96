@@ -15,6 +15,7 @@ router.delete('/:jobId', verifyToken, jobController.deleteJob);
 
 // Comentarios y respuestas
 router.post('/:jobId/comments', verifyToken, jobController.addComment);
+router.get('/:jobId/comments', jobController.getJobComments); // Añadir esta ruta para obtener comentarios
 router.post('/comments/:commentId/replies', verifyToken, jobController.addReply);
 
 // Likes y guardados

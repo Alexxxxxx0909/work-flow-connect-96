@@ -18,14 +18,6 @@ import { CommentItem } from '@/components/Comments/CommentItem';
 
 /**
  * Componente de la página de detalles de una propuesta
- * 
- * Esta página muestra toda la información de una propuesta específica:
- * - Información general como título, descripción, presupuesto
- * - Habilidades requeridas
- * - Sistema de comentarios
- * - Información del cliente
- * - Opciones para contactar al cliente
- * - Opciones para guardar/dar like a la propuesta
  */
 const JobDetail = () => {
   // Hooks de React Router para obtener el ID de la propuesta y navegación
@@ -33,7 +25,7 @@ const JobDetail = () => {
   const navigate = useNavigate();
   
   // Hooks de contexto para acceder a datos y funcionalidades
-  const { getJob, addComment, toggleSavedJob, toggleLike, savedJobs } = useJobs(); // Funcionalidades de propuestas
+  const { getJob, addComment, toggleSavedJob, toggleLike, savedJobs, loadJobs } = useJobs(); // Funcionalidades de propuestas
   const { currentUser } = useAuth(); // Información del usuario actual
   const { findExistingPrivateChat, createPrivateChat } = useChat(); // Funcionalidades de chat
   const { getUserById } = useData(); // Para obtener datos de usuarios
@@ -41,15 +33,72 @@ const JobDetail = () => {
   // Estados locales para el formulario de comentarios
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [job, setJob] = useState<JobType | null>(null);
   
-  // Obtener la propuesta basada en el ID de la URL
-  const job = jobId ? getJob(jobId) : undefined;
+  // Cargar trabajo cuando se monta el componente
+  useEffect(() => {
+    const loadJobDetails = async () => {
+      if (!jobId) return;
+      
+      setIsLoading(true);
+      try {
+        // Primero intentamos obtener el trabajo del contexto
+        let jobData = getJob(jobId);
+        
+        // Si no existe, intentamos cargarlo directamente con la API
+        if (!jobData) {
+          try {
+            // Importamos dinámicamente para evitar ciclos de dependencia
+            const { getJobById } = await import('@/lib/jobService');
+            jobData = await getJobById(jobId);
+          } catch (error) {
+            console.error("Error al cargar trabajo:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "No se pudo cargar la información de la propuesta"
+            });
+          }
+        }
+        
+        if (jobData) {
+          setJob(jobData);
+          console.log("Trabajo cargado:", jobData);
+          console.log("Comentarios:", jobData.comments ? jobData.comments.length : 0);
+        }
+      } catch (error) {
+        console.error("Error al procesar trabajo:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadJobDetails();
+    // También recargamos todos los trabajos para mantener el contexto actualizado
+    loadJobs();
+  }, [jobId, getJob, loadJobs]);
+  
   // Obtener información del propietario de la propuesta
   const jobOwner = job ? getUserById(job.userId) : undefined;
   // Verificar si la propuesta está guardada por el usuario actual
   const isJobSaved = job && savedJobs.includes(job.id);
   // Verificar si el usuario ha dado like a la propuesta
   const hasUserLiked = job && currentUser ? job.likes.includes(currentUser.id) : false;
+  
+  // Si está cargando, mostrar un indicador de carga
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-wfc-purple mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando propuesta...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
   
   // Si no se encuentra la propuesta, mostrar mensaje de error
   if (!job) {
