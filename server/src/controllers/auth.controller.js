@@ -149,10 +149,3 @@ exports.verifySession = async (req, res) => {
     });
   }
 };
-
-module.exports = {
-  register,
-  login,
-  logout,
-  verifySession
-};

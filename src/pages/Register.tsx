@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Register = () => {
@@ -14,7 +13,6 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userRole, setUserRole] = useState<'freelancer' | 'client'>('freelancer');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -41,7 +39,7 @@ const Register = () => {
     
     try {
       setLoading(true);
-      await register(email, password, name, userRole);
+      await register(email, password, name);
       // Registration successful, user will be redirected to dashboard by the auth provider
     } catch (error) {
       console.error('Error de registro:', error);
@@ -123,25 +121,6 @@ const Register = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Tipo de cuenta</Label>
-                <RadioGroup 
-                  defaultValue="freelancer" 
-                  value={userRole} 
-                  onValueChange={(value) => setUserRole(value as 'freelancer' | 'client')}
-                  className="flex space-x-4 mt-1"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="freelancer" id="freelancer" />
-                    <Label htmlFor="freelancer">Freelancer</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="client" id="client" />
-                    <Label htmlFor="client">Cliente</Label>
-                  </div>
-                </RadioGroup>
               </div>
             </CardContent>
             
