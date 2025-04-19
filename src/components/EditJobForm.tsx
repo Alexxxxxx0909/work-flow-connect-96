@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { JobType } from '@/contexts/JobContext';
 import { useData } from '@/contexts/DataContext';
+import { toast } from '@/components/ui/use-toast';
 
 type EditJobFormProps = {
   job: JobType;
@@ -49,7 +50,23 @@ const EditJobForm = ({ job, onSubmit, onCancel, isSubmitting }: EditJobFormProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    
+    try {
+      // Make sure budget is a number, not a string
+      const updatedFormData = {
+        ...formData,
+        budget: Number(formData.budget)
+      };
+      
+      await onSubmit(updatedFormData);
+    } catch (error) {
+      console.error("Error al enviar formulario:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar la propuesta. Inténtalo de nuevo."
+      });
+    }
   };
 
   return (

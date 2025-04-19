@@ -1,3 +1,4 @@
+
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -178,15 +179,54 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
  * Actualizar un trabajo existente
  */
 export const updateJob = async (jobId: string, jobData: Partial<JobType>): Promise<JobType> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const index = JOBS.findIndex(job => job.id === jobId);
-  if (index === -1) {
-    throw new Error('Trabajo no encontrado');
+  try {
+    // Try to update job via API first
+    const response = await apiRequest(`/jobs/${jobId}`, 'PUT', {
+      title: jobData.title,
+      description: jobData.description,
+      budget: jobData.budget,
+      category: jobData.category,
+      skills: jobData.skills,
+      status: jobData.status
+    });
+    
+    if (response && response.success && response.job) {
+      const job = response.job;
+      return {
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget: job.budget,
+        category: job.category,
+        skills: job.skills || [],
+        status: job.status || 'open',
+        userId: job.userId,
+        userName: job.user?.name || "Usuario",
+        userPhoto: job.user?.photoURL,
+        timestamp: new Date(job.createdAt).getTime(),
+        comments: job.comments || [],
+        likes: job.likedBy?.map((user: any) => user.id) || [],
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt
+      };
+    }
+    
+    throw new Error('Error al actualizar trabajo en la API');
+  } catch (error) {
+    console.error("Error al actualizar trabajo en la API:", error);
+    console.log("Usando almacenamiento local como respaldo");
+    
+    // Fallback to local data
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const index = JOBS.findIndex(job => job.id === jobId);
+    if (index === -1) {
+      throw new Error('Trabajo no encontrado');
+    }
+    
+    JOBS[index] = { ...JOBS[index], ...jobData };
+    return { ...JOBS[index] };
   }
-  
-  JOBS[index] = { ...JOBS[index], ...jobData };
-  return { ...JOBS[index] };
 };
 
 /**
