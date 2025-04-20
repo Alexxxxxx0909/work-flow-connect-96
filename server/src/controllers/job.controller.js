@@ -271,9 +271,12 @@ exports.deleteJob = async (req, res) => {
     const { jobId } = req.params;
     const userId = req.user.id;
     
+    console.log(`Intentando eliminar trabajo con ID: ${jobId} por usuario: ${userId}`);
+    
     const job = await Job.findByPk(jobId);
     
     if (!job) {
+      console.log(`Trabajo con ID ${jobId} no encontrado`);
       return res.status(404).json({
         success: false,
         message: 'Trabajo no encontrado'
@@ -282,13 +285,27 @@ exports.deleteJob = async (req, res) => {
     
     // Verificar que el usuario es el propietario
     if (job.userId !== userId) {
+      console.log(`Usuario ${userId} no tiene permiso para eliminar trabajo ${jobId} (propietario: ${job.userId})`);
       return res.status(403).json({
         success: false,
         message: 'No tienes permiso para eliminar este trabajo'
       });
     }
     
+    // Eliminar comentarios y respuestas relacionados primero
+    const comments = await Comment.findAll({ where: { jobId } });
+    for (const comment of comments) {
+      await Reply.destroy({ where: { commentId: comment.id } });
+    }
+    await Comment.destroy({ where: { jobId } });
+    
+    // Eliminar relaciones con usuarios (likes, guardados)
+    await job.setLikedBy([]);
+    await job.setSavedBy([]);
+    
+    // Finalmente eliminar el trabajo
     await job.destroy();
+    console.log(`Trabajo ${jobId} eliminado correctamente`);
     
     return res.status(200).json({
       success: true,

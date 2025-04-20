@@ -1,4 +1,3 @@
-
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -264,12 +263,20 @@ export const updateJob = async (jobId: string, jobData: Partial<JobType>): Promi
  * Eliminar un trabajo
  */
 export const deleteJob = async (jobId: string): Promise<boolean> => {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  
-  const initialLength = JOBS.length;
-  JOBS = JOBS.filter(job => job.id !== jobId);
-  
-  return JOBS.length < initialLength;
+  try {
+    // Intentar eliminar el trabajo a través de la API
+    const response = await apiRequest(`/jobs/${jobId}`, 'DELETE');
+    
+    if (response && response.success) {
+      console.log(`Trabajo ${jobId} eliminado correctamente desde la API`);
+      return true;
+    }
+    
+    throw new Error('Error al eliminar trabajo en la API');
+  } catch (error) {
+    console.error("Error al eliminar trabajo en la API:", error);
+    throw error; // Propagamos el error para que el contexto pueda manejarlo
+  }
 };
 
 /**

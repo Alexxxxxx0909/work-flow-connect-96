@@ -217,13 +217,24 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       const success = await deleteJobService(jobId);
       
       if (success) {
+        // Actualizar el estado local eliminando el trabajo
         setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
+        toast({
+          title: "Éxito",
+          description: "La propuesta ha sido eliminada correctamente."
+        });
+        return true;
+      } else {
+        throw new Error('No se pudo eliminar la propuesta');
       }
-      
-      return success;
     } catch (error) {
       console.error("Error al eliminar trabajo:", error);
-      throw error;
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo eliminar la propuesta. Inténtalo de nuevo."
+      });
+      return false;
     }
   };
 
