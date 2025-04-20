@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/Layout/MainLayout';
@@ -196,7 +197,29 @@ const JobDetail = () => {
    * Función para dar/quitar like a una propuesta
    */
   const handleToggleLike = () => {
-    if (!currentUser || !job) return;
+    if (!currentUser || !job) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Debes iniciar sesión para dar me gusta"
+      });
+      return;
+    }
+    
+    // Añadir optimistic update para mejorar UX
+    const currentLikeStatus = hasUserLiked;
+    setJob(prev => {
+      if (!prev) return prev;
+      
+      const newLikes = currentLikeStatus
+        ? prev.likes.filter(id => id !== currentUser.id)
+        : [...prev.likes, currentUser.id];
+        
+      return {
+        ...prev,
+        likes: newLikes
+      };
+    });
     
     toggleLike(job.id, currentUser.id);
   };

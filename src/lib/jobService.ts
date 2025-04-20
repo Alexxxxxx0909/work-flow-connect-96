@@ -397,22 +397,23 @@ export const addReplyToComment = async (
  * Toggle like para un trabajo
  */
 export const toggleJobLike = async (jobId: string, userId: string): Promise<boolean> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  const jobIndex = JOBS.findIndex(job => job.id === jobId);
-  if (jobIndex === -1) {
-    throw new Error('Trabajo no encontrado');
+  try {
+    // Intentar ejecutar la acción a través de la API
+    console.log(`Toggling like for job ${jobId} by user ${userId}`);
+    const response = await apiRequest(`/jobs/${jobId}/like`, 'POST');
+    
+    if (response && response.success !== undefined) {
+      console.log(`Like action successful through API. Job now liked: ${response.liked}`);
+      return response.liked;
+    }
+    throw new Error('Error al actualizar like en la API');
+  } catch (error) {
+    console.error("Error al dar/quitar like en la API:", error);
+    
+    // En lugar de usar un fallback local silencioso, propagar el error
+    // para que el usuario sepa que algo falló
+    throw error;
   }
-  
-  const userLiked = JOBS[jobIndex].likes.includes(userId);
-  
-  if (userLiked) {
-    JOBS[jobIndex].likes = JOBS[jobIndex].likes.filter(id => id !== userId);
-  } else {
-    JOBS[jobIndex].likes = [...JOBS[jobIndex].likes, userId];
-  }
-  
-  return !userLiked;
 };
 
 /**

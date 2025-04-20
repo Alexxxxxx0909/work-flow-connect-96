@@ -435,8 +435,11 @@ exports.toggleJobLike = async (req, res) => {
     const { jobId } = req.params;
     const userId = req.user.id;
     
+    console.log(`Toggling like for job ${jobId} by user ${userId}`);
+    
     const job = await Job.findByPk(jobId);
     if (!job) {
+      console.log(`Job with ID ${jobId} not found`);
       return res.status(404).json({
         success: false,
         message: 'Trabajo no encontrado'
@@ -447,12 +450,16 @@ exports.toggleJobLike = async (req, res) => {
     const likedBy = await job.getLikedBy({ where: { id: userId } });
     const hasLiked = likedBy.length > 0;
     
+    console.log(`User ${userId} has liked job ${jobId}: ${hasLiked ? 'Yes' : 'No'}`);
+    
     if (hasLiked) {
       // Quitar like
       await job.removeLikedBy(userId);
+      console.log(`Like removed from job ${jobId} by user ${userId}`);
     } else {
       // Añadir like
       await job.addLikedBy(userId);
+      console.log(`Like added to job ${jobId} by user ${userId}`);
     }
     
     return res.status(200).json({

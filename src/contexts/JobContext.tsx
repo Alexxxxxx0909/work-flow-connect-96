@@ -1,4 +1,3 @@
-
 /**
  * Contexto de Trabajos
  * 
@@ -113,6 +112,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
   const [jobs, setJobs] = useState<JobType[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
 
   /**
    * Función para cargar todos los trabajos
@@ -359,7 +359,17 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    * Función para dar/quitar like a un trabajo
    */
   const toggleLike = async (jobId: string, userId: string) => {
+    if (!currentUser || !jobId) return;
+    
     try {
+      console.log(`Intentando dar/quitar like al trabajo ${jobId} por usuario ${userId}`);
+      // Comprobar si el trabajo existe en nuestro estado
+      const jobExists = jobs.some(job => job.id === jobId);
+      if (!jobExists) {
+        console.log(`El trabajo ${jobId} no existe en el estado actual, recargando trabajos...`);
+        await loadJobs();
+      }
+      
       const isNowLiked = await toggleJobLikeService(jobId, userId);
       
       setJobs(prevJobs => prevJobs.map(job => {
@@ -374,8 +384,23 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
           likes
         };
       }));
+      
+      // Mostrar toast de confirmación
+      toast({
+        title: isNowLiked ? "Me gusta añadido" : "Me gusta eliminado",
+        description: isNowLiked 
+          ? "Has indicado que te gusta esta propuesta" 
+          : "Has eliminado tu me gusta de esta propuesta"
+      });
+      
     } catch (error) {
       console.error("Error al marcar/desmarcar me gusta:", error);
+      
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar el me gusta. Inténtalo de nuevo."
+      });
     }
   };
 
