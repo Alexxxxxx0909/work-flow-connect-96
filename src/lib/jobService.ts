@@ -1,3 +1,4 @@
+
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -285,10 +286,12 @@ export const deleteJob = async (jobId: string): Promise<boolean> => {
 export const addCommentToJob = async (jobId: string, content: string, user: UserType): Promise<CommentType> => {
   try {
     // Try to add comment via API first
+    console.log(`Añadiendo comentario a trabajo ${jobId}:`, content);
     const response = await apiRequest(`/jobs/${jobId}/comments`, 'POST', { content });
     
     if (response && response.comment) {
       const comment = response.comment;
+      console.log("Comentario creado en la API:", comment);
       return {
         id: comment.id,
         jobId,

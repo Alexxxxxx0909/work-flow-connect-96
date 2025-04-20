@@ -1,3 +1,4 @@
+
 /**
  * Contexto de Trabajos
  * 
@@ -253,6 +254,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
         replies: newComment.replies || []
       };
       
+      // Actualizar el estado local
       setJobs(prevJobs => prevJobs.map(job => 
         job.id === jobId 
           ? { ...job, comments: [...job.comments, formattedComment] }
@@ -263,6 +265,8 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       try {
         const updatedJob = await getJobById(jobId);
         if (updatedJob) {
+          console.log("Trabajo actualizado después de añadir comentario:", updatedJob);
+          console.log("Comentarios en el trabajo actualizado:", updatedJob.comments?.length || 0);
           setJobs(prevJobs => prevJobs.map(job => 
             job.id === jobId ? updatedJob : job
           ));

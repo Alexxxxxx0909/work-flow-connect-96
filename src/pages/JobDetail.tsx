@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/Layout/MainLayout';
@@ -164,11 +163,22 @@ const JobDetail = () => {
       // Llamar a la función para añadir el comentario a la propuesta
       await addComment(job.id, commentText, currentUser);
       setCommentText(''); // Limpiar el campo de comentario
+      
+      // Recargar el trabajo para asegurarnos de mostrar los comentarios actualizados
+      const { getJobById } = await import('@/lib/jobService');
+      const updatedJob = await getJobById(job.id);
+      if (updatedJob) {
+        setJob(updatedJob);
+        console.log("Trabajo actualizado después de comentario:", updatedJob);
+        console.log("Comentarios actualizados:", updatedJob.comments?.length || 0);
+      }
+      
       toast({
         title: "Comentario enviado",
         description: "Tu comentario ha sido publicado correctamente"
       });
     } catch (error) {
+      console.error("Error al enviar comentario:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -318,12 +328,14 @@ const JobDetail = () => {
               </CardHeader>
               <CardContent>
                 {/* Lista de comentarios existentes */}
-                {job.comments.length > 0 && (
+                {job.comments && job.comments.length > 0 ? (
                   <div className="space-y-4 mb-6">
                     {job.comments.map((comment) => (
                       <CommentItem key={comment.id} comment={comment} jobId={job.id} />
                     ))}
                   </div>
+                ) : (
+                  <p className="text-gray-500 mb-6">Aún no hay comentarios en esta propuesta. ¡Sé el primero en comentar!</p>
                 )}
                 
                 {/* Formulario para añadir un nuevo comentario (solo para usuarios autenticados) */}
