@@ -1,3 +1,4 @@
+
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -343,10 +344,12 @@ export const addReplyToComment = async (
 ): Promise<ReplyType | undefined> => {
   try {
     // Try to add reply via API first
-    const response = await apiRequest(`/comments/${commentId}/replies`, 'POST', { content });
+    console.log(`Añadiendo respuesta al comentario ${commentId}:`, content);
+    const response = await apiRequest(`/jobs/comments/${commentId}/replies`, 'POST', { content });
     
     if (response && response.reply) {
       const reply = response.reply;
+      console.log("Respuesta creada en la API:", reply);
       return {
         id: reply.id,
         commentId,

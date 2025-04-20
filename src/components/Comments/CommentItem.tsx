@@ -29,15 +29,25 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment, jobId }) => {
       await addReplyToComment(jobId, comment.id, replyContent, currentUser);
       setReplyContent('');
       setShowReplyForm(false);
+      
+      // Mostrar toast de éxito
       toast({
         title: "Respuesta enviada",
         description: "Tu respuesta ha sido publicada correctamente"
       });
+      
+      // Recargar la página para mostrar la nueva respuesta
+      // Esta es una solución temporal, idealmente deberíamos actualizar el estado
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
     } catch (error) {
+      console.error("Error al enviar respuesta:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo enviar la respuesta"
+        description: "No se pudo enviar la respuesta. Inténtalo de nuevo."
       });
     } finally {
       setIsSubmittingReply(false);
