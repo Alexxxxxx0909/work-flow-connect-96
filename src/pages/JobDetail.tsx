@@ -42,24 +42,9 @@ const JobDetail = () => {
       
       setIsLoading(true);
       try {
-        // Primero intentamos obtener el trabajo del contexto
-        let jobData = getJob(jobId);
-        
-        // Si no existe, intentamos cargarlo directamente con la API
-        if (!jobData) {
-          try {
-            // Importamos dinámicamente para evitar ciclos de dependencia
-            const { getJobById } = await import('@/lib/jobService');
-            jobData = await getJobById(jobId);
-          } catch (error) {
-            console.error("Error al cargar trabajo:", error);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "No se pudo cargar la información de la propuesta"
-            });
-          }
-        }
+        // Importamos dinámicamente para evitar ciclos de dependencia
+        const { getJobById } = await import('@/lib/jobService');
+        const jobData = await getJobById(jobId);
         
         if (jobData) {
           setJob(jobData);
@@ -67,17 +52,20 @@ const JobDetail = () => {
           console.log("Comentarios:", jobData.comments ? jobData.comments.length : 0);
         }
       } catch (error) {
-        console.error("Error al procesar trabajo:", error);
+        console.error("Error al cargar trabajo:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo cargar la información de la propuesta"
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
     loadJobDetails();
-    // También recargamos todos los trabajos para mantener el contexto actualizado
-    loadJobs();
-  }, [jobId, getJob, loadJobs]);
-  
+  }, [jobId]);
+
   // Obtener información del propietario de la propuesta
   const jobOwner = job ? getUserById(job.userId) : undefined;
   // Verificar si la propuesta está guardada por el usuario actual

@@ -1,4 +1,3 @@
-
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -105,7 +104,7 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
       
       // Mapear comentarios desde la API
       const mappedComments: CommentType[] = job.comments ? job.comments.map((comment: any) => {
-        console.log(`Procesando comentario:`, comment.id);
+        console.log(`Procesando comentario:`, comment);
         return {
           id: comment.id,
           jobId: job.id,
@@ -126,7 +125,7 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
         };
       }) : [];
       
-      console.log(`Comentarios mapeados:`, mappedComments.length);
+      console.log(`Comentarios mapeados:`, mappedComments);
       
       return {
         id: job.id,

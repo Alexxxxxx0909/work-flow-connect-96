@@ -170,7 +170,8 @@ exports.getJobById = async (req, res) => {
                 }
               ]
             }
-          ]
+          ],
+          order: [['createdAt', 'DESC']]
         }
       ]
     });
