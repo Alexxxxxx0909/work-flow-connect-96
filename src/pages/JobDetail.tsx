@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/Layout/MainLayout';
-import { useJobs } from '@/contexts/JobContext';
+import { useJobs, JobType } from '@/contexts/JobContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useData } from '@/contexts/DataContext';
