@@ -1,4 +1,3 @@
-
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -409,9 +408,6 @@ export const toggleJobLike = async (jobId: string, userId: string): Promise<bool
     throw new Error('Error al actualizar like en la API');
   } catch (error) {
     console.error("Error al dar/quitar like en la API:", error);
-    
-    // En lugar de usar un fallback local silencioso, propagar el error
-    // para que el usuario sepa que algo falló
     throw error;
   }
 };
@@ -420,31 +416,49 @@ export const toggleJobLike = async (jobId: string, userId: string): Promise<bool
  * Toggle guardar un trabajo para un usuario
  */
 export const toggleSavedJob = async (userId: string, jobId: string): Promise<boolean> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  if (!SAVED_JOBS[userId]) {
-    SAVED_JOBS[userId] = [];
+  try {
+    const response = await apiRequest(`/jobs/${jobId}/save`, 'POST');
+    
+    if (response && response.success !== undefined) {
+      console.log(`Save action successful through API. Job now saved: ${response.saved}`);
+      return response.saved;
+    }
+    throw new Error('Error al guardar/remover trabajo');
+  } catch (error) {
+    console.error("Error al marcar/desmarcar trabajo guardado:", error);
+    throw error;
   }
-  
-  const isJobSaved = SAVED_JOBS[userId].includes(jobId);
-  
-  if (isJobSaved) {
-    SAVED_JOBS[userId] = SAVED_JOBS[userId].filter(id => id !== jobId);
-  } else {
-    SAVED_JOBS[userId] = [...SAVED_JOBS[userId], jobId];
-  }
-  
-  return !isJobSaved;
 };
 
 /**
  * Obtener trabajos guardados por un usuario
  */
 export const getSavedJobs = async (userId: string): Promise<JobType[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  const savedJobIds = SAVED_JOBS[userId] || [];
-  const jobs = JOBS.filter(job => savedJobIds.includes(job.id));
-  
-  return jobs.map(job => ({ ...job }));
+  try {
+    const response = await apiRequest('/jobs/saved/me');
+    
+    if (response && response.success && Array.isArray(response.jobs)) {
+      return response.jobs.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget: job.budget,
+        category: job.category,
+        skills: job.skills || [],
+        status: job.status || 'open',
+        userId: job.userId,
+        userName: job.user?.name || "Usuario",
+        userPhoto: job.user?.photoURL,
+        timestamp: new Date(job.createdAt).getTime(),
+        comments: job.comments || [],
+        likes: job.likedBy?.map((user: any) => user.id) || [],
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt
+      }));
+    }
+    throw new Error('Error al obtener trabajos guardados');
+  } catch (error) {
+    console.error("Error al obtener trabajos guardados:", error);
+    throw error;
+  }
 };

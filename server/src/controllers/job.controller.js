@@ -450,8 +450,6 @@ exports.toggleJobLike = async (req, res) => {
     const likedBy = await job.getLikedBy({ where: { id: userId } });
     const hasLiked = likedBy.length > 0;
     
-    console.log(`User ${userId} has liked job ${jobId}: ${hasLiked ? 'Yes' : 'No'}`);
-    
     if (hasLiked) {
       // Quitar like
       await job.removeLikedBy(userId);
