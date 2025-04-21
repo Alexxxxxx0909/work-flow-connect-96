@@ -17,49 +17,58 @@ exports.createChat = async (req, res) => {
     
     // Para chats privados (no grupos), verificar si ya existe un chat entre los usuarios
     if (!isGroup && participantIds.length === 2) {
-      const existingChat = await Chat.findOne({
+      // Buscar todos los chats privados del usuario actual
+      const userChats = await Chat.findAll({
         include: [
           {
             model: User,
             as: 'participants',
             where: {
-              id: { [Op.in]: participantIds }
+              id: userId
             }
           }
         ],
         where: { isGroup: false }
       });
       
-      // Si ya existe un chat privado entre estos usuarios, devolverlo
-      if (existingChat && (await existingChat.getParticipants()).length === 2) {
-        const chatWithDetails = await Chat.findByPk(existingChat.id, {
-          include: [
-            {
-              model: User,
-              as: 'participants',
-              attributes: ['id', 'name', 'photoURL', 'isOnline', 'lastSeen']
-            },
-            {
-              model: Message,
-              as: 'messages',
-              limit: 20,
-              order: [['createdAt', 'DESC']],
-              include: [
-                {
-                  model: User,
-                  as: 'user',
-                  attributes: ['id', 'name', 'photoURL']
-                }
-              ]
-            }
-          ]
-        });
+      // Filtrar para encontrar chats donde el otro participante también está presente
+      for (const chat of userChats) {
+        const participants = await chat.getParticipants();
         
-        return res.status(200).json({
-          success: true,
-          message: 'Chat existente encontrado',
-          chat: chatWithDetails
-        });
+        if (participants.length === 2 && 
+            participants.some(p => p.id === participantIds[0]) && 
+            participants.some(p => p.id === participantIds[1])) {
+          
+          // Ya existe un chat privado entre estos usuarios, devolverlo
+          const chatWithDetails = await Chat.findByPk(chat.id, {
+            include: [
+              {
+                model: User,
+                as: 'participants',
+                attributes: ['id', 'name', 'photoURL', 'isOnline', 'lastSeen']
+              },
+              {
+                model: Message,
+                as: 'messages',
+                limit: 20,
+                order: [['createdAt', 'DESC']],
+                include: [
+                  {
+                    model: User,
+                    as: 'user',
+                    attributes: ['id', 'name', 'photoURL']
+                  }
+                ]
+              }
+            ]
+          });
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Chat existente encontrado',
+            chat: chatWithDetails
+          });
+        }
       }
     }
     
@@ -70,7 +79,7 @@ exports.createChat = async (req, res) => {
     });
     
     // Añadir participantes
-    await chat.setParticipants(participantIds);
+    await Promise.all(participantIds.map(id => chat.addParticipant(id)));
     
     // Obtener chat con detalles de participantes
     const chatWithDetails = await Chat.findByPk(chat.id, {
@@ -106,11 +115,8 @@ exports.getChats = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Buscar usuario
-    const user = await User.findByPk(userId);
-    
-    // Obtener todos los chats donde el usuario es participante
-    const chats = await user.getChats({
+    // Buscar todos los chats donde el usuario es participante
+    const chats = await Chat.findAll({
       include: [
         {
           model: User,
@@ -131,7 +137,31 @@ exports.getChats = async (req, res) => {
           ]
         }
       ],
-      order: [['lastMessageAt', 'DESC']]
+      order: [['lastMessageAt', 'DESC']],
+      // Filtrar chats donde el usuario actual es participante
+      include: [
+        {
+          model: User,
+          as: 'participants',
+          where: {
+            id: userId
+          },
+          attributes: ['id', 'name', 'photoURL', 'isOnline', 'lastSeen']
+        },
+        {
+          model: Message,
+          as: 'messages',
+          limit: 1,
+          order: [['createdAt', 'DESC']],
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'name', 'photoURL']
+            }
+          ]
+        }
+      ]
     });
     
     return res.status(200).json({
@@ -189,7 +219,9 @@ exports.getChat = async (req, res) => {
     }
     
     // Verificar que el usuario es participante
-    const isParticipant = await chat.hasParticipant(userId);
+    const participants = await chat.getParticipants();
+    const isParticipant = participants.some(p => p.id === userId);
+    
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -243,7 +275,9 @@ exports.sendMessage = async (req, res) => {
     }
     
     // Verificar que el usuario es participante
-    const isParticipant = await chat.hasParticipant(userId);
+    const participants = await chat.getParticipants();
+    const isParticipant = participants.some(p => p.id === userId);
+    
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -316,7 +350,9 @@ exports.addParticipant = async (req, res) => {
     }
     
     // Verificar que el usuario que hace la solicitud es participante
-    const isRequestUserParticipant = await chat.hasParticipant(requestUserId);
+    const participants = await chat.getParticipants();
+    const isRequestUserParticipant = participants.some(p => p.id === requestUserId);
+    
     if (!isRequestUserParticipant) {
       return res.status(403).json({
         success: false,
@@ -334,7 +370,8 @@ exports.addParticipant = async (req, res) => {
     }
     
     // Verificar si el usuario ya es participante
-    const isAlreadyParticipant = await chat.hasParticipant(participantId);
+    const isAlreadyParticipant = participants.some(p => p.id === participantId);
+    
     if (isAlreadyParticipant) {
       return res.status(400).json({
         success: false,
@@ -349,7 +386,7 @@ exports.addParticipant = async (req, res) => {
     await Message.create({
       content: `${req.user.name} ha añadido a ${userToAdd.name} al chat`,
       chatId,
-      userId: 'system' // ID especial para mensajes del sistema
+      userId: null // ID especial para mensajes del sistema
     });
     
     // Obtener chat actualizado con participantes
@@ -397,7 +434,9 @@ exports.leaveChat = async (req, res) => {
     }
     
     // Verificar que el usuario es participante
-    const isParticipant = await chat.hasParticipant(userId);
+    const participants = await chat.getParticipants();
+    const isParticipant = participants.some(p => p.id === userId);
+    
     if (!isParticipant) {
       return res.status(400).json({
         success: false,
@@ -420,7 +459,7 @@ exports.leaveChat = async (req, res) => {
     await Message.create({
       content: `${req.user.name} ha abandonado el chat`,
       chatId,
-      userId: 'system'
+      userId: null
     });
     
     return res.status(200).json({

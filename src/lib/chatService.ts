@@ -1,23 +1,26 @@
+
 /**
  * Servicio de Chat
  */
 
 import { apiRequest } from './api';
 import { ChatType, MessageType } from "@/contexts/ChatContext";
+import { toast } from '@/components/ui/use-toast';
 
 /**
  * Obtener todos los chats para un usuario
  */
-export const getChats = async (userId: string): Promise<ChatType[]> => {
+export const getChats = async (): Promise<ChatType[]> => {
   try {
     const response = await apiRequest('/chats');
     if (!response.success) {
-      throw new Error('Error al obtener chats');
+      throw new Error(response.message || 'Error al obtener chats');
     }
-    return response.chats;
+    return response.chats || [];
   } catch (error) {
     console.error('Error al obtener chats:', error);
-    throw error;
+    // No lanzar error si no hay chats, solo devolver array vacío
+    return [];
   }
 };
 
@@ -26,6 +29,10 @@ export const getChats = async (userId: string): Promise<ChatType[]> => {
  */
 export const createChat = async (participantIds: string[], name = ""): Promise<ChatType> => {
   try {
+    if (!participantIds || participantIds.length === 0) {
+      throw new Error('Se requieren participantes para crear un chat');
+    }
+    
     const response = await apiRequest('/chats', 'POST', {
       participantIds,
       name,
@@ -33,7 +40,7 @@ export const createChat = async (participantIds: string[], name = ""): Promise<C
     });
 
     if (!response.success) {
-      throw new Error('Error al crear chat');
+      throw new Error(response.message || 'Error al crear chat');
     }
     
     return response.chat;
@@ -46,14 +53,18 @@ export const createChat = async (participantIds: string[], name = ""): Promise<C
 /**
  * Enviar un mensaje a un chat
  */
-export const sendMessage = async (chatId: string, senderId: string, content: string): Promise<MessageType> => {
+export const sendMessage = async (chatId: string, content: string): Promise<MessageType> => {
   try {
+    if (!chatId || !content.trim()) {
+      throw new Error('Se requiere un ID de chat y contenido para enviar un mensaje');
+    }
+    
     const response = await apiRequest(`/chats/${chatId}/messages`, 'POST', {
       content
     });
 
     if (!response.success) {
-      throw new Error('Error al enviar mensaje');
+      throw new Error(response.message || 'Error al enviar mensaje');
     }
 
     return response.chatMessage;
@@ -68,12 +79,16 @@ export const sendMessage = async (chatId: string, senderId: string, content: str
  */
 export const addParticipantToChat = async (chatId: string, participantId: string): Promise<boolean> => {
   try {
+    if (!chatId || !participantId) {
+      throw new Error('Se requiere un ID de chat y un ID de participante');
+    }
+    
     const response = await apiRequest(`/chats/${chatId}/participants`, 'POST', {
       userId: participantId
     });
 
     if (!response.success) {
-      throw new Error('Error al añadir participante');
+      throw new Error(response.message || 'Error al añadir participante');
     }
 
     return true;
@@ -88,9 +103,13 @@ export const addParticipantToChat = async (chatId: string, participantId: string
  */
 export const getChatById = async (chatId: string): Promise<ChatType | null> => {
   try {
+    if (!chatId) {
+      throw new Error('Se requiere un ID de chat');
+    }
+    
     const response = await apiRequest(`/chats/${chatId}`);
     if (!response.success) {
-      throw new Error('Error al obtener chat');
+      throw new Error(response.message || 'Error al obtener chat');
     }
     return response.chat;
   } catch (error) {
@@ -110,7 +129,7 @@ export const setupChatListener = (callback: (chats: ChatType[]) => void) => {
   listeners.push(callback);
   
   // Llamar inmediatamente con los datos actuales
-  getChats('current').then(chats => {
+  getChats().then(chats => {
     callback(chats);
   }).catch(error => {
     console.error("Error al obtener chats iniciales:", error);

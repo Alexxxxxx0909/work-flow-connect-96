@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useChat } from '@/contexts/ChatContext';
@@ -40,9 +41,19 @@ export const UserSelectDialog = ({
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/users/search');
+      // Actualizado para usar la ruta correcta
+      const response = await apiRequest('/users');
       if (response && response.users) {
+        console.log("Usuarios cargados:", response.users);
         setUsers(response.users);
+      } else {
+        console.log("No se encontraron usuarios en la respuesta:", response);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Formato de respuesta inesperado al cargar usuarios"
+        });
+        setUsers([]);
       }
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
@@ -51,6 +62,7 @@ export const UserSelectDialog = ({
         title: "Error",
         description: "No se pudieron cargar los usuarios"
       });
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -64,6 +76,7 @@ export const UserSelectDialog = ({
   
   const handleSelectUser = (user: UserType) => {
     if (onUserSelect) {
+      console.log("Usuario seleccionado:", user);
       onUserSelect(user.id);
       onOpenChange(false);
     }
@@ -93,7 +106,9 @@ export const UserSelectDialog = ({
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
-              No se encontraron usuarios
+              {users.length > 0 
+                ? "No se encontraron usuarios con ese nombre" 
+                : "No hay usuarios disponibles"}
             </div>
           ) : (
             <div className="space-y-1">
