@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,8 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { UserType } from '@/contexts/DataContext';
+import { apiRequest } from '@/lib/api';
+import { toast } from '@/components/ui/use-toast';
 
 interface UserSelectDialogProps {
   open: boolean;
@@ -25,14 +26,37 @@ export const UserSelectDialog = ({
   onUserSelect,
   excludeUsers = []
 }: UserSelectDialogProps) => {
-  const { getAllUsers } = useData();
   const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(false);
   
-  const allUsers = getAllUsers();
+  useEffect(() => {
+    if (open) {
+      loadUsers();
+    }
+  }, [open]);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiRequest('/users/search');
+      if (response && response.users) {
+        setUsers(response.users);
+      }
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los usuarios"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
-  // Filter users: exclude current user, exclude specified users, and filter by name
-  const filteredUsers = allUsers.filter(user => 
+  const filteredUsers = users.filter(user => 
     user.id !== currentUser?.id && 
     !excludeUsers.includes(user.id) &&
     user.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -63,7 +87,11 @@ export const UserSelectDialog = ({
         </div>
         
         <ScrollArea className="h-[300px]">
-          {filteredUsers.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-6 w-6 animate-spin text-wfc-purple" />
+            </div>
+          ) : filteredUsers.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               No se encontraron usuarios
             </div>

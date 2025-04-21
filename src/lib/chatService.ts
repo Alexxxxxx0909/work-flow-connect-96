@@ -1,169 +1,106 @@
-
 /**
  * Servicio de Chat
- * 
- * Este servicio proporciona funcionalidades temporales para la gestión de chats
- * mientras se implementa un backend personalizado.
  */
 
+import { apiRequest } from './api';
 import { ChatType, MessageType } from "@/contexts/ChatContext";
-
-// Estado local para los chats (simula una base de datos)
-let CHATS: ChatType[] = [
-  {
-    id: "chat1",
-    name: "",
-    participants: ["user1", "user3"],
-    messages: [
-      {
-        id: "msg1",
-        senderId: "user3",
-        content: "Hola, me interesa tu perfil para un proyecto",
-        timestamp: Date.now() - 86400000 // 1 día atrás
-      },
-      {
-        id: "msg2",
-        senderId: "user1",
-        content: "Hola, gracias por contactarme. Cuéntame más sobre el proyecto.",
-        timestamp: Date.now() - 86400000 + 3600000 // 1 día atrás + 1 hora
-      }
-    ],
-    isGroup: false,
-    lastMessage: {
-      id: "msg2",
-      senderId: "user1",
-      content: "Hola, gracias por contactarme. Cuéntame más sobre el proyecto.",
-      timestamp: Date.now() - 86400000 + 3600000
-    }
-  },
-  {
-    id: "chat2",
-    name: "Proyecto Web App",
-    participants: ["user1", "user2", "user3"],
-    messages: [
-      {
-        id: "msg3",
-        senderId: "user3",
-        content: "He creado este grupo para coordinar el nuevo proyecto",
-        timestamp: Date.now() - 172800000 // 2 días atrás
-      },
-      {
-        id: "msg4",
-        senderId: "user2",
-        content: "Perfecto, ¿cuándo comenzamos?",
-        timestamp: Date.now() - 172800000 + 3600000 // 2 días atrás + 1 hora
-      }
-    ],
-    isGroup: true,
-    lastMessage: {
-      id: "msg4",
-      senderId: "user2",
-      content: "Perfecto, ¿cuándo comenzamos?",
-      timestamp: Date.now() - 172800000 + 3600000
-    }
-  }
-];
-
-// Mapa de callbacks para simular listeners en tiempo real
-const listeners: ((chats: ChatType[]) => void)[] = [];
-
-// Función para notificar a los listeners cuando hay cambios
-const notifyListeners = () => {
-  listeners.forEach(callback => callback([...CHATS]));
-};
 
 /**
  * Obtener todos los chats para un usuario
  */
 export const getChats = async (userId: string): Promise<ChatType[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return CHATS.filter(chat => chat.participants.includes(userId)).map(chat => ({ ...chat }));
+  try {
+    const response = await apiRequest('/chats');
+    if (!response.success) {
+      throw new Error('Error al obtener chats');
+    }
+    return response.chats;
+  } catch (error) {
+    console.error('Error al obtener chats:', error);
+    throw error;
+  }
 };
 
 /**
  * Crear un nuevo chat
  */
 export const createChat = async (participantIds: string[], name = ""): Promise<ChatType> => {
-  await new Promise(resolve => setTimeout(resolve, 700));
-  
-  const isGroup = participantIds.length > 2 || !!name;
-  
-  const newChat: ChatType = {
-    id: `chat${Date.now()}`,
-    name,
-    participants: participantIds,
-    messages: [],
-    isGroup
-  };
-  
-  CHATS = [...CHATS, newChat];
-  
-  // Notificar a los listeners sobre el cambio
-  notifyListeners();
-  
-  return { ...newChat };
+  try {
+    const response = await apiRequest('/chats', 'POST', {
+      participantIds,
+      name,
+      isGroup: participantIds.length > 2 || !!name
+    });
+
+    if (!response.success) {
+      throw new Error('Error al crear chat');
+    }
+    
+    return response.chat;
+  } catch (error) {
+    console.error('Error al crear chat:', error);
+    throw error;
+  }
 };
 
 /**
  * Enviar un mensaje a un chat
  */
 export const sendMessage = async (chatId: string, senderId: string, content: string): Promise<MessageType> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  const chatIndex = CHATS.findIndex(chat => chat.id === chatId);
-  if (chatIndex === -1) {
-    throw new Error('Chat no encontrado');
+  try {
+    const response = await apiRequest(`/chats/${chatId}/messages`, 'POST', {
+      content
+    });
+
+    if (!response.success) {
+      throw new Error('Error al enviar mensaje');
+    }
+
+    return response.chatMessage;
+  } catch (error) {
+    console.error('Error al enviar mensaje:', error);
+    throw error;
   }
-  
-  const newMessage: MessageType = {
-    id: `msg_${Date.now()}`,
-    senderId,
-    content,
-    timestamp: Date.now()
-  };
-  
-  CHATS[chatIndex].messages.push(newMessage);
-  CHATS[chatIndex].lastMessage = newMessage;
-  
-  // Notificar a los listeners sobre el cambio
-  notifyListeners();
-  
-  return { ...newMessage };
 };
 
 /**
  * Añadir un participante a un chat existente
  */
 export const addParticipantToChat = async (chatId: string, participantId: string): Promise<boolean> => {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  
-  const chatIndex = CHATS.findIndex(chat => chat.id === chatId);
-  if (chatIndex === -1) {
-    throw new Error('Chat no encontrado');
-  }
-  
-  if (CHATS[chatIndex].participants.includes(participantId)) {
+  try {
+    const response = await apiRequest(`/chats/${chatId}/participants`, 'POST', {
+      userId: participantId
+    });
+
+    if (!response.success) {
+      throw new Error('Error al añadir participante');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error al añadir participante:', error);
     return false;
   }
-  
-  CHATS[chatIndex].participants = [...CHATS[chatIndex].participants, participantId];
-  
-  // Añadir un mensaje del sistema
-  const systemMessage: MessageType = {
-    id: `msg_${Date.now()}`,
-    senderId: "system",
-    content: "Un nuevo participante se ha unido al chat",
-    timestamp: Date.now()
-  };
-  
-  CHATS[chatIndex].messages = [...CHATS[chatIndex].messages, systemMessage];
-  CHATS[chatIndex].lastMessage = systemMessage;
-  
-  // Notificar a los listeners sobre el cambio
-  notifyListeners();
-  
-  return true;
 };
+
+/**
+ * Obtener un chat por ID
+ */
+export const getChatById = async (chatId: string): Promise<ChatType | null> => {
+  try {
+    const response = await apiRequest(`/chats/${chatId}`);
+    if (!response.success) {
+      throw new Error('Error al obtener chat');
+    }
+    return response.chat;
+  } catch (error) {
+    console.error('Error al obtener chat:', error);
+    return null;
+  }
+};
+
+// Mapa de callbacks para simular listeners en tiempo real
+const listeners: ((chats: ChatType[]) => void)[] = [];
 
 /**
  * Configurar un listener para cambios en los chats
@@ -173,7 +110,12 @@ export const setupChatListener = (callback: (chats: ChatType[]) => void) => {
   listeners.push(callback);
   
   // Llamar inmediatamente con los datos actuales
-  callback([...CHATS]);
+  getChats('current').then(chats => {
+    callback(chats);
+  }).catch(error => {
+    console.error("Error al obtener chats iniciales:", error);
+    callback([]);
+  });
   
   // Devolver una función para eliminar el listener
   return () => {
@@ -182,13 +124,4 @@ export const setupChatListener = (callback: (chats: ChatType[]) => void) => {
       listeners.splice(index, 1);
     }
   };
-};
-
-/**
- * Obtener un chat por ID
- */
-export const getChatById = async (chatId: string): Promise<ChatType | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const chat = CHATS.find(chat => chat.id === chatId);
-  return chat ? { ...chat } : null;
 };

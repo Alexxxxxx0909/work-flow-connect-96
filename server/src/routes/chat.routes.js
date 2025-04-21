@@ -2,8 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const chatController = require('../controllers/chat.controller');
+const { verifyToken } = require('../middleware/auth');
 
-// Todas las rutas están protegidas por el middleware verifyToken en app.js
+// Proteger todas las rutas con autenticación
+router.use(verifyToken);
 
 // Rutas de chat
 router.post('/', chatController.createChat);

@@ -1,4 +1,3 @@
-
 const { sequelize } = require('../config/database');
 const User = require('./user.model');
 const Job = require('./job.model');
@@ -35,6 +34,16 @@ Job.belongsToMany(User, { through: 'JobLikes', as: 'likedBy', foreignKey: 'jobId
 // Users - Jobs (Saved) (Muchos usuarios pueden guardar muchos trabajos)
 User.belongsToMany(Job, { through: 'SavedJobs', as: 'savedJobs', foreignKey: 'userId' });
 Job.belongsToMany(User, { through: 'SavedJobs', as: 'savedBy', foreignKey: 'jobId' });
+
+// Relaciones de Chat
+Chat.belongsToMany(User, { through: 'ChatParticipants', as: 'participants' });
+User.belongsToMany(Chat, { through: 'ChatParticipants', as: 'chats' });
+
+Chat.hasMany(Message, { as: 'messages', onDelete: 'CASCADE' });
+Message.belongsTo(Chat, { as: 'chat' });
+
+Message.belongsTo(User, { as: 'user' });
+User.hasMany(Message, { as: 'messages' });
 
 // NO ejecutamos sequelize.sync() aquí ya que lo haremos en el archivo principal (index.js)
 
