@@ -10,6 +10,16 @@ exports.createChat = async (req, res) => {
     const { participantIds, name, isGroup } = req.body;
     const userId = req.user.id;
     
+    console.log("Creando chat con:", { participantIds, name, isGroup, userId });
+    
+    // Verificar que existan participantes
+    if (!participantIds || !Array.isArray(participantIds) || participantIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requieren participantes para crear un chat'
+      });
+    }
+    
     // Asegurarse de que el usuario actual está incluido en los participantes
     if (!participantIds.includes(userId)) {
       participantIds.push(userId);
@@ -35,9 +45,12 @@ exports.createChat = async (req, res) => {
       for (const chat of userChats) {
         const participants = await chat.getParticipants();
         
+        const participantIds = participants.map(p => p.id);
+        console.log("Participantes en chat existente:", participantIds);
+        
         if (participants.length === 2 && 
-            participants.some(p => p.id === participantIds[0]) && 
-            participants.some(p => p.id === participantIds[1])) {
+            participantIds.includes(req.body.participantIds[0]) && 
+            participantIds.includes(userId)) {
           
           // Ya existe un chat privado entre estos usuarios, devolverlo
           const chatWithDetails = await Chat.findByPk(chat.id, {
@@ -78,8 +91,17 @@ exports.createChat = async (req, res) => {
       isGroup: !!isGroup
     });
     
+    console.log("Nuevo chat creado:", chat.id);
+    
     // Añadir participantes
-    await Promise.all(participantIds.map(id => chat.addParticipant(id)));
+    for (const id of participantIds) {
+      try {
+        await chat.addParticipant(id);
+        console.log(`Usuario ${id} añadido como participante`);
+      } catch (error) {
+        console.error(`Error al añadir participante ${id}:`, error);
+      }
+    }
     
     // Obtener chat con detalles de participantes
     const chatWithDetails = await Chat.findByPk(chat.id, {

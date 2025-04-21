@@ -33,6 +33,8 @@ export const createChat = async (participantIds: string[], name = ""): Promise<C
       throw new Error('Se requieren participantes para crear un chat');
     }
     
+    console.log("Creando chat con participantes:", participantIds, "nombre:", name);
+    
     const response = await apiRequest('/chats', 'POST', {
       participantIds,
       name,
@@ -40,6 +42,7 @@ export const createChat = async (participantIds: string[], name = ""): Promise<C
     });
 
     if (!response.success) {
+      console.error("Error en respuesta del servidor:", response);
       throw new Error(response.message || 'Error al crear chat');
     }
     

@@ -1,192 +1,161 @@
-
 const { User, Job } = require('../models');
-const fs = require('fs').promises;
-const path = require('path');
+const bcrypt = require('bcrypt');
+const { Op } = require('sequelize');
 
 /**
- * Obtener información del usuario actual
+ * Obtener perfil de usuario
+ */
+exports.getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByPk(id, {
+      attributes: ['id', 'name', 'email', 'role', 'photoURL', 'isOnline', 'lastSeen']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    console.error('Error al obtener perfil de usuario:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener perfil de usuario',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Obtener usuario actual
  */
 exports.getCurrentUser = async (req, res) => {
   try {
-    // El usuario ya está en req.user gracias al middleware de autenticación
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'name', 'email', 'role', 'photoURL', 'isOnline', 'lastSeen']
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      user: req.user.toJSON()
+      user
     });
   } catch (error) {
     console.error('Error al obtener usuario actual:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error al obtener información del usuario',
+      message: 'Error al obtener usuario actual',
       error: error.message
     });
   }
 };
 
 /**
- * Obtener perfil de un usuario por ID
+ * Actualizar usuario actual
  */
-exports.getUserById = async (req, res) => {
+exports.updateCurrentUser = async (req, res) => {
   try {
-    const { userId } = req.params;
-    
-    const user = await User.findByPk(userId, {
-      attributes: { exclude: ['password'] },
-      include: [
-        {
-          model: Job,
-          as: 'jobs',
-          limit: 5,
-          order: [['createdAt', 'DESC']]
-        }
-      ]
-    });
-    
+    const { name, email, password, role, photoURL } = req.body;
+    const userId = req.user.id;
+
+    // Buscar usuario
+    const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       });
     }
-    
+
+    // Actualizar campos
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.role = role || user.role;
+    user.photoURL = photoURL || user.photoURL;
+
+    // Actualizar contraseña si se proporciona
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    // Guardar cambios
+    await user.save();
+
     return res.status(200).json({
       success: true,
+      message: 'Usuario actualizado correctamente',
       user
     });
-    
   } catch (error) {
-    console.error('Error al obtener usuario por ID:', error);
+    console.error('Error al actualizar usuario actual:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error al obtener información del usuario',
+      message: 'Error al actualizar usuario actual',
       error: error.message
     });
   }
 };
 
 /**
- * Actualizar perfil de usuario
+ * Obtener todos los usuarios
  */
-exports.updateProfile = async (req, res) => {
+exports.getAllUsers = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { name, bio, skills, hourlyRate } = req.body;
-    
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-    
-    // Actualizar campos
-    if (name) user.name = name;
-    if (bio !== undefined) user.bio = bio;
-    if (skills) user.skills = skills;
-    if (hourlyRate !== undefined) user.hourlyRate = hourlyRate;
-    
-    await user.save();
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Perfil actualizado correctamente',
-      user: user.toJSON()
+    const users = await User.findAll({
+      attributes: ['id', 'name', 'email', 'role', 'photoURL', 'isOnline', 'lastSeen']
     });
-    
-  } catch (error) {
-    console.error('Error al actualizar perfil:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al actualizar perfil',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Subir foto de perfil
- */
-exports.uploadProfilePhoto = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No se ha subido ninguna imagen'
-      });
-    }
-    
-    const userId = req.user.id;
-    const photoURL = `/uploads/profiles/${req.file.filename}`;
-    
-    const user = await User.findByPk(userId);
-    
-    // Eliminar foto anterior si existe
-    if (user.photoURL && user.photoURL !== '') {
-      try {
-        const oldPhotoPath = path.join(__dirname, '../../', user.photoURL);
-        await fs.access(oldPhotoPath);
-        await fs.unlink(oldPhotoPath);
-      } catch (err) {
-        // Si el archivo no existe, ignoramos el error
-        console.log('No se pudo eliminar la foto anterior:', err);
-      }
-    }
-    
-    // Actualizar URL de la foto
-    user.photoURL = photoURL;
-    await user.save();
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Foto de perfil actualizada correctamente',
-      photoURL
-    });
-    
-  } catch (error) {
-    console.error('Error al subir foto de perfil:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al subir foto de perfil',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Buscar usuarios (para añadir a chats o ver perfiles)
- */
-exports.searchUsers = async (req, res) => {
-  try {
-    const { query, role } = req.query;
-    const searchQuery = {
-      attributes: { exclude: ['password'] },
-      where: {}
-    };
-    
-    // Añadir filtro por nombre o email si hay query
-    if (query) {
-      const { Op } = require('sequelize');
-      searchQuery.where = {
-        [Op.or]: [
-          { name: { [Op.iLike]: `%${query}%` } },
-          { email: { [Op.iLike]: `%${query}%` } }
-        ]
-      };
-    }
-    
-    // Añadir filtro por rol si se especifica
-    if (role && ['freelancer', 'client'].includes(role)) {
-      searchQuery.where.role = role;
-    }
-    
-    const users = await User.findAll(searchQuery);
     
     return res.status(200).json({
       success: true,
       users
     });
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener usuarios',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Buscar usuarios por nombre
+ */
+exports.searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    let whereClause = {};
     
+    if (query) {
+      whereClause.name = {
+        [Op.iLike]: `%${query}%`
+      };
+    }
+    
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: ['id', 'name', 'email', 'role', 'photoURL', 'isOnline', 'lastSeen']
+    });
+    
+    return res.status(200).json({
+      success: true,
+      users
+    });
   } catch (error) {
     console.error('Error al buscar usuarios:', error);
     return res.status(500).json({
