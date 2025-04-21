@@ -41,8 +41,8 @@ export const UserSelectDialog = ({
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Actualizado para usar la ruta correcta
-      const response = await apiRequest('/users');
+      // Usamos la ruta correcta para buscar usuarios
+      const response = await apiRequest('/users/search');
       if (response && response.users) {
         console.log("Usuarios cargados:", response.users);
         setUsers(response.users);

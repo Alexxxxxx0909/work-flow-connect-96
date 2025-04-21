@@ -119,7 +119,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     try {
       console.log("Cargando chats para el usuario:", currentUser.id);
       // Obtener chats iniciales
-      const userChats = await getServiceChats(currentUser.id);
+      const userChats = await getServiceChats();
       setChats(userChats);
       console.log("Chats cargados:", userChats.length);
     } catch (error) {
@@ -186,7 +186,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     try {
       console.log("Enviando mensaje:", { chatId, content });
-      await sendServiceMessage(chatId, currentUser.id, content);
+      await sendServiceMessage(chatId, content);
       console.log("Mensaje enviado correctamente");
     } catch (error) {
       console.error("Error al enviar mensaje:", error);
