@@ -1,278 +1,169 @@
 
-/**
- * Contexto de Autenticación
- * 
- * Este contexto proporciona funcionalidad de autenticación para la aplicación, incluyendo:
- * - Manejo de inicio de sesión y registro de usuarios
- * - Gestión del estado del usuario actual
- * - Actualización del perfil de usuario
- * - Cierre de sesión
- */
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { authService, userService } from '@/services/api';
+import { toast } from '@/components/ui/use-toast';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { toast } from "@/components/ui/use-toast";
-import { apiRequest } from "@/lib/api";
-import { UserType } from "@/contexts/DataContext";
-import { 
-  saveToken, 
-  getToken, 
-  removeToken, 
-  saveUserData, 
-  removeUserData, 
-  getUserData,
-  clearSession 
-} from "@/lib/authService";
-import { disconnectSocket } from '@/lib/socket';
+// Tipo para usuario actual
+export type CurrentUserType = {
+  id: string;
+  name: string;
+  email: string;
+  photoURL: string;
+  role: string;
+  isOnline: boolean;
+  lastSeen: Date;
+} | null;
 
+// Interfaz para el contexto de autenticación
 interface AuthContextType {
-  currentUser: UserType | null;
+  currentUser: CurrentUserType;
+  token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role?: 'freelancer' | 'client') => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
+  register: (name: string, email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
-  updateUserProfile: (data: Partial<UserType>) => Promise<void>;
-  uploadProfilePhoto: (file: File) => Promise<string>;
+  updateCurrentUser: (userData: Partial<CurrentUserType>) => Promise<any>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+// Crear el contexto
+const AuthContext = createContext<AuthContextType>({
+  currentUser: null,
+  token: null,
+  loading: true,
+  login: () => Promise.resolve(),
+  register: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  updateCurrentUser: () => Promise.resolve()
+});
 
-/**
- * Hook personalizado para acceder al contexto de autenticación
- */
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de un AuthProvider');
-  }
-  return context;
-};
+// Hook personalizado para usar el contexto
+export const useAuth = () => useContext(AuthContext);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-/**
- * Proveedor del contexto de autenticación
- */
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserType | null>(getUserData());
+// Proveedor del contexto
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<CurrentUserType>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('wfc_token'));
   const [loading, setLoading] = useState(true);
 
+  // Verificar el token almacenado y obtener información del usuario
   useEffect(() => {
-    // Verificar sesión al cargar
-    const verifySession = async () => {
-      const token = getToken();
-      if (token) {
-        try {
-          const response = await apiRequest('/auth/verify');
-          const user = response.user;
-          setCurrentUser(user);
-          saveUserData(user);
-        } catch (error) {
-          console.error('Error al verificar sesión:', error);
-          clearSession();
-        }
+    const verifyAuth = async () => {
+      const storedToken = localStorage.getItem('wfc_token');
+      
+      if (!storedToken) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      
+      setToken(storedToken);
+      
+      try {
+        // Obtener información del usuario actual
+        const { data } = await userService.getCurrentUser();
+        setCurrentUser(data.user);
+      } catch (error) {
+        console.error('Error al verificar autenticación:', error);
+        // Si hay un error, eliminar el token
+        localStorage.removeItem('wfc_token');
+        setToken(null);
+        setCurrentUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    verifySession();
+    verifyAuth();
   }, []);
 
-  /**
-   * Función para iniciar sesión
-   */
+  // Función para iniciar sesión
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
-      const response = await apiRequest('/auth/login', 'POST', { email, password });
-      const { user, token } = response;
+      const { data } = await authService.login(email, password);
       
-      // Guardar token y datos de usuario
-      saveToken(token);
-      saveUserData(user);
-      setCurrentUser(user);
+      // Guardar el token
+      localStorage.setItem('wfc_token', data.token);
+      setToken(data.token);
+      setCurrentUser(data.user);
       
-      toast({
-        title: "Inicio de sesión exitoso",
-        description: "Bienvenido a WorkFlowConnect",
-      });
-    } catch (error) {
-      console.error('Error de inicio de sesión:', error);
+      return data;
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Error al iniciar sesión';
       toast({
         variant: "destructive",
         title: "Error de inicio de sesión",
-        description: error instanceof Error ? error.message : "Error al iniciar sesión",
+        description: message
       });
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  /**
-   * Función para registrar nuevo usuario
-   */
-  const register = async (email: string, password: string, name: string, role: 'freelancer' | 'client' = 'freelancer') => {
-    setLoading(true);
+  // Función para registrarse
+  const register = async (name: string, email: string, password: string) => {
     try {
-      const response = await apiRequest('/auth/register', 'POST', { 
-        email, 
-        password, 
-        name,
-        role 
-      });
+      const { data } = await authService.register(name, email, password);
       
-      const { user, token } = response;
+      // Guardar el token
+      localStorage.setItem('wfc_token', data.token);
+      setToken(data.token);
+      setCurrentUser(data.user);
       
-      // Guardar token y datos de usuario
-      saveToken(token);
-      saveUserData(user);
-      setCurrentUser(user);
-      
-      toast({
-        title: "Registro exitoso",
-        description: "¡Bienvenido a WorkFlowConnect!",
-      });
-    } catch (error) {
-      console.error('Error de registro:', error);
+      return data;
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Error al registrar';
       toast({
         variant: "destructive",
         title: "Error de registro",
-        description: error instanceof Error ? error.message : "Error al registrar",
+        description: message
       });
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  /**
-   * Función para cerrar sesión
-   */
+  // Función para cerrar sesión
   const logout = async () => {
     try {
-      // Llamar al endpoint de logout
-      if (getToken()) {
-        await apiRequest('/auth/logout', 'POST');
-      }
-      
-      // Limpiar datos locales
-      clearSession();
-      disconnectSocket();
-      setCurrentUser(null);
-      
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      });
+      await authService.logout();
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
-      // Aún así, limpiamos los datos locales
-      clearSession();
+    } finally {
+      // Eliminar el token y el usuario actual
+      localStorage.removeItem('wfc_token');
+      setToken(null);
       setCurrentUser(null);
-      
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Error al cerrar sesión"
-      });
     }
   };
 
-  /**
-   * Función para actualizar el perfil
-   */
-  const updateUserProfile = async (data: Partial<UserType>) => {
-    if (!currentUser) throw new Error('No hay usuario autenticado');
-    
+  // Función para actualizar el usuario actual
+  const updateCurrentUser = async (userData: Partial<CurrentUserType>) => {
     try {
-      const response = await apiRequest('/users/profile', 'PUT', data);
-      const updatedUser = response.user;
-      
-      saveUserData(updatedUser);
-      setCurrentUser(updatedUser);
-      
-      toast({
-        title: "Perfil actualizado",
-        description: "Tus cambios han sido guardados",
-      });
-    } catch (error) {
+      const { data } = await userService.updateCurrentUser(userData);
+      setCurrentUser(data.user);
+      return data;
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Error al actualizar perfil';
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Error al actualizar el perfil"
+        description: message
       });
       throw error;
     }
   };
 
-  /**
-   * Función para subir foto de perfil
-   */
-  const uploadProfilePhoto = async (file: File) => {
-    if (!currentUser) throw new Error('No hay usuario autenticado');
-    
-    try {
-      // Para subir archivos necesitamos usar FormData en lugar de JSON
-      const formData = new FormData();
-      formData.append('photo', file);
-      
-      // Implementar la lógica de subida usando fetch directamente, ya que apiRequest es para JSON
-      const token = getToken();
-      const response = await fetch(`http://localhost:5000/api/users/upload-photo`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al subir la foto');
-      }
-      
-      const data = await response.json();
-      const photoURL = data.photoURL;
-      
-      // Actualizar usuario con la nueva foto
-      const updatedUser = { ...currentUser, photoURL };
-      saveUserData(updatedUser);
-      setCurrentUser(updatedUser);
-      
-      toast({
-        title: "Foto actualizada",
-        description: "Tu foto de perfil ha sido actualizada",
-      });
-      
-      return photoURL;
-    } catch (error) {
-      console.error("Error en uploadProfilePhoto:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Error al subir la foto de perfil"
-      });
-      throw error;
-    }
+  // Valor del contexto
+  const value = {
+    currentUser,
+    token,
+    loading,
+    login,
+    register,
+    logout,
+    updateCurrentUser
   };
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        currentUser, 
-        loading, 
-        login, 
-        register, 
-        logout,
-        updateUserProfile,
-        uploadProfilePhoto
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-export default AuthContext;
